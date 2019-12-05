@@ -8,7 +8,7 @@ const sp2dkKppSchema = new Schema({
     JML_SP2DK_BLM_LHP2DK: Number,
     JML_LHP2DK: Number,
     JML_KEP_LHP2DK_SELESAI: Number,
-    JML_KEP_LHP2DK__USULRIK: Number,
+    JML_KEP_LHP2DK_USULRIK: Number,
     JML_KEP_LHP2DK_USULBUKPER: Number,
     JML_KEP_LHP2DK_DLMPENGAWASAN: Number,
     JML_KEP_LHP2DK_TA: Number,

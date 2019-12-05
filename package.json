@@ -21,6 +21,7 @@
     "jsonp": "^0.2.1",
     "jssoup": "0.0.10",
     "mongoose": "^5.7.8",
+    "odbc": "^2.2.2",
     "puppeteer": "^2.0.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.5"

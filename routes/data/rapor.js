@@ -9,13 +9,36 @@ const dateFromObjectId = objectId => {
 	return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
 }
 
+const quartile = (arr, q) => {
+  arr = arr.slice().sort((a, b) => a - b)
+  var pos = ((arr.length) - 1) * q
+  var base = Math.floor(pos)
+  var rest = pos - base
+  if( (arr[base + 1] !== undefined) ) {
+    return arr[base] + rest * (arr[base + 1] - arr[base]);
+  } else {
+    return arr[base];
+  }
+}
+
+const getXmax = arr => {
+  const q1 = quartile(arr, .25)
+  const q3 = quartile(arr, .5)
+  const iqr = q3 - q1
+  const sep = q3 + (1.5 * iqr)
+
+  arr = arr.filter(a => a <= sep)
+  return Math.max(...arr)
+}
+
 const hitungSkor = (a, b, x, xmax, xmin) => {
-  return (a-b) * (x-xmin) / (xmax-xmin) + 1
+  const skor = (a-b) * (x-xmin) / (xmax-xmin) + 1
+  return skor <= 100 ? skor : 100
 }
 
 const ranking = arr => {
-  const sorted = arr.slice().sort(function(a,b){return b-a})
-  const ranks = arr.slice().map(function(v){ return sorted.indexOf(v)+1 })
+  const sorted = arr.slice().sort((a, b) => b - a)
+  const ranks = arr.slice().map(v => sorted.indexOf(v) + 1 )
   return ranks
 }
 
@@ -82,27 +105,27 @@ const getRapor = async (req, res) => {
 
   const a = 100
   const b = 1
-  
+
   const xMinJmlSp2dk = 1
-  const xMaxJmlSp2dk = Math.max(...jmlSp2dkArr)
+  const xMaxJmlSp2dk = getXmax(jmlSp2dkArr)
   const xMinJmlLhp2dk = 1
-  const xMaxJmlLhp2dk = Math.max(...jmlLhp2dkArr)
+  const xMaxJmlLhp2dk = getXmax(jmlLhp2dkArr)
   const xMinJmlLhp2dkBerkualitas = 1
-  const xMaxJmlLhp2dkBerkualitas = Math.max(...jmlLhp2dkBerkualitasArr)
+  const xMaxJmlLhp2dkBerkualitas = getXmax(jmlLhp2dkBerkualitasArr)
   const xMinNilaiPotensiAkhir = 500000
-  const xMaxNilaiPotensiAkhir = Math.max(...nilaiPotensiAkhirArr)
+  const xMaxNilaiPotensiAkhir = getXmax(nilaiPotensiAkhirArr)
   const xMinRealisasiPotensiJmlWp = 1
-  const xMaxRealisasiPotensiJmlWp = Math.max(...realisasiPotensiJmlWpArr)
+  const xMaxRealisasiPotensiJmlWp = getXmax(realisasiPotensiJmlWpArr)
   const xMinRealisasiPotensiNilai = 100000
-  const xMaxRealisasiPotensiNilai = Math.max(...realisasiPotensiNilaiArr)
+  const xMaxRealisasiPotensiNilai = getXmax(realisasiPotensiNilaiArr)
   const xMinJmlStp = 1
-  const xMaxJmlStp = Math.max(...jmlStpArr)
+  const xMaxJmlStp = getXmax(jmlStpArr)
   const xMinNilaiStp = 100000
-  const xMaxNilaiStp = Math.max(...nilaiStpArr)
+  const xMaxNilaiStp = getXmax(nilaiStpArr)
   const xMinjmlNonGalpot = 1
-  const xMaxjmlNonGalpot = Math.max(...jmlNonGalpotArr)
+  const xMaxjmlNonGalpot = getXmax(jmlNonGalpotArr)
   const xMinjmlVisit = 1
-  const xMaxjmlVisit = Math.max(...jmlVisitArr)
+  const xMaxjmlVisit = getXmax(jmlVisitArr)
 
   const totalSkorAkhirArr = []
   for(let d of Object.keys(data)){
