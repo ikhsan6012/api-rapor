@@ -1,5 +1,4 @@
 const cheerio = require('cheerio')
-const mongoose = require('mongoose')
 const rp = require('request-promise').defaults({
     jar: true,
     rejectUnauthorized: false,
@@ -10,19 +9,12 @@ const rp = require('request-promise').defaults({
 const { IP_SIKKA, PASS_SIKKA } = process.env
 const mainUrl = 'http://approweb.intranet.pajak.go.id'
 const loginUrl = 'http://approweb.intranet.pajak.go.id/index.php?r=site/index'
-const db = mongoose.connection
 const STPKWL = require('../../models/stpKwlModel')
 const STPKPP = require('../../models/stpKppModel')
 const STPAR = require('../../models/stpArModel')
 const STPWP = require('../../models/stpWpModel')
 
 const getDataAndImportStp = (req, res) => {
-    console.log('Menghapus Data STP Terdahulu')
-    db.dropCollection('STPKWL')
-    db.dropCollection('STPKPP')
-    db.dropCollection('STPAR')
-    db.dropCollection('STPWP')
-
     const url = 'http://approweb.intranet.pajak.go.id/index.php?r=pengawasan/terbitSTP&profile_id=080'
     const { bulanAwal, bulanAkhir, tahun } = req.body
     let apprCSRF
@@ -42,6 +34,7 @@ const getDataAndImportStp = (req, res) => {
         const data = []
         $ = cheerio.load(resp.body)
         let rows = $('#stpwp tr')
+        if(!rows.length) return false
         for(let r = 1; r < rows.length - 1; r++){
             let cells = $($(rows[r]).find('td'))
             const d = { 'KD_KPP': kd_kpp, 'NIP_AR': nip_ar }
@@ -59,26 +52,33 @@ const getDataAndImportStp = (req, res) => {
                     case 5: d['NILAI_USD'] = parseInt(txt.replace(/\,/g, ''))
                 }
             }
-            data.push(d)
+            data.push({
+                updateOne: {
+                    filter: { NPWP: d.NPWP },
+                    update: d,
+                    upsert: true
+                }
+            })
         }
         console.log(`Menambahkan Data STP WP AR ${ nip_ar }...`)
-        await STPWP.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data STP WP AR ${ nip_ar } Ditambahkan...`)
-        })
+        await STPWP.bulkWrite(data)
+        console.log(`${ data.length } Data STP WP AR ${ nip_ar } Ditambahkan...`)
     }
 
     const getDataAndImportStpAr = async (resp, kd_kpp) => {
         const data = []
         $ = cheerio.load(resp.body)
         let rows = $('table tr')
-        let firstIdx
+        let firstIdx, lastIdx = rows.length - 1
 
         for(let r = 0; r< rows.length; r++){
             const txt = $(rows[r]).text()
             if(txt.match(/Eksten/)) firstIdx = r + 1
+            if(txt.match('Non Waskon')) lastIdx = r
         }
 
-        for(let r = firstIdx; r < rows.length - 1; r++){
+        if(!firstIdx) return false
+        for(let r = firstIdx; r < lastIdx; r++){
             let cells = $($(rows[r]).find('td'))
             const d = { 'KD_KPP': kd_kpp }
             for(let c = 1; c <= cells.length - 1; c++){
@@ -95,14 +95,19 @@ const getDataAndImportStp = (req, res) => {
                     case 5: d['NILAI_USD'] = parseInt(txt.replace(/\,/g, ''))
                 }
             }
-            data.push(d)
+            data.push({
+                updateOne: {
+                    filter: { NIP_AR: d.NIP_AR },
+                    update: d,
+                    upsert: true
+                }
+            })
         }
         console.log(`Menambahkan Data STP AR KPP ${ kd_kpp }...`)
-        await STPAR.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data STP AR KPP ${ kd_kpp } Ditambahkan...`)
-        })
+        await STPAR.bulkWrite(data)
+        console.log(`${ data.length } Data STP AR KPP ${ kd_kpp } Ditambahkan...`)
 
-        for(let r = firstIdx; r < rows.length - 1; r++){
+        for(let r = firstIdx; r < lastIdx; r++){
             let nip_ar = $($(rows[r]).find('td')[1]).text().trim().substring(1,10)
             let link = $(rows[r]).find('a').attr('href')
             await rp.get(mainUrl + link).then(async resp => {
@@ -134,15 +139,20 @@ const getDataAndImportStp = (req, res) => {
         ])
         for(let i in data){
             data[i] = { 
-                ...data[i],
-                KD_KPP: data[i]['_id'],
-                KD_KWL: '090'
+                updateOne: {
+                    filter: { KD_KPP: data[i]['_id'] },
+                    update: {
+                        ...data[i],
+                        KD_KPP: data[i]['_id'],
+                        KD_KWL: '090'
+                    },
+                    upsert: true
+                }
             }
-            delete(data[i]['_id'])
+            delete(data[i].updateOne.update['_id'])
         }
-        await STPKPP.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data STP KPP KANWIL 090 Ditambahkan...`)
-        })
+        await STPKPP.bulkWrite(data)
+        console.log(`${ data.length } Data STP KPP KANWIL 090 Ditambahkan...`)
     }
 
     const getDataAndImportStpKwl = async resp => {
@@ -165,14 +175,19 @@ const getDataAndImportStp = (req, res) => {
         ])
         for(let i in data){
             data[i] = { 
-                ...data[i],
-                KD_KWL: data[i]['_id']
+                updateOne: {
+                    filter: { KD_KWL: data[i]['_id'] },
+                    update: {
+                        ...data[i],
+                        KD_KWL: data[i]['_id']
+                    },
+                    upsert: true
+                }
             }
-            delete(data[i]['_id'])
+            delete(data[i].updateOne.update['_id'])
         }
-        await STPKWL.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data STP KANWIL 090 Ditambahkan...`)
-        })
+        await STPKWL.bulkWrite(data)
+        console.log(`${ data.length } Data STP KANWIL 090 Ditambahkan...`)
     }
 
     rp.get(loginUrl).then(resp => {

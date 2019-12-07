@@ -10,19 +10,12 @@ const rp = require('request-promise').defaults({
 const { IP_SIKKA, PASS_SIKKA } = process.env
 const mainUrl = 'http://approweb.intranet.pajak.go.id'
 const loginUrl = 'http://approweb.intranet.pajak.go.id/index.php?r=site/index'
-const db = mongoose.connection
 const SP2DKKWL = require('../../models/sp2dkKwlModel')
 const SP2DKKPP = require('../../models/sp2dkKppModel')
 const SP2DKAR = require('../../models/sp2dkArModel')
 const SP2DKWP = require('../../models/sp2dkWpModel')
 
 const getDataAndImportSp2dk = (req, res) => {
-    console.log('Menghapus Data SP2DK Terdahulu')
-    db.dropCollection('SP2DKKWL')
-    db.dropCollection('SP2DKKPP')
-    db.dropCollection('SP2DKAR')
-    db.dropCollection('SP2DKWP')
-
     const url = 'http://approweb.intranet.pajak.go.id/index.php?r=pengawasan/sp2dk'
     const { jnsTgl, bulan1, tahun1, bulan2, tahun2 } = req.body
     let apprCSRF
@@ -92,12 +85,17 @@ const getDataAndImportSp2dk = (req, res) => {
                         break
                 }
             }
-            data.push(d)
+            data.push({
+                updateOne: {
+                    filter: { NPWP: d.NPWP },
+                    update: d,
+                    upsert: true
+                }
+            })
         }
         console.log(`Menambahkan Data SP2DK WP AR ${ nip_ar }...`)
-        await SP2DKWP.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data SP2DK WP AR ${ nip_ar } Ditambahkan...`)
-        })
+        await SP2DKWP.bulkWrite(data)
+        console.log(`${ data.length } Data SP2DK WP AR ${ nip_ar } Ditambahkan...`)
     }
 
     const getDataAndImportSp2dkAr = async (resp, kd_kpp) => {
@@ -155,12 +153,17 @@ const getDataAndImportSp2dk = (req, res) => {
                         break
                 }
             }
-            data.push(d)
+            data.push({
+                updateOne: {
+                    filter: { NPWP: d.NPWP },
+                    update: d,
+                    upsert: true
+                }
+            })
         }
         console.log(`Menambahkan Data SP2DK AR KPP ${ kd_kpp }...`)
-        await SP2DKAR.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data SP2DK AR KPP ${ kd_kpp } Ditambahkan...`)
-        })
+        await SP2DKAR.bulkWrite(data)
+        console.log(`${ data.length } Data SP2DK AR KPP ${ kd_kpp } Ditambahkan...`)
 
         for(let r = 3; r < rows.length - 1; r++){
             let nip_ar = $($(rows[r]).find('td')[1]).text().trim().substring(1,10)
@@ -213,16 +216,21 @@ const getDataAndImportSp2dk = (req, res) => {
             }
         ])
         for(let i in data){
-            data[i] = { 
-                ...data[i],
-                KD_KPP: data[i]['_id'],
-                KD_KWL: '090'
+            data[i] = {
+                updateOne: {
+                    filter: { KD_KPP: data[i]['_id'] },
+                    update: {
+                        ...data[i],
+                        KD_KPP: data[i]['_id'],
+                        KD_KWL: '090'
+                    },
+                    upsert: true
+                }
             }
-            delete(data[i]['_id'])
+            delete data[i].updateOne.update['_id']
         }
-        await SP2DKKPP.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data SP2DK KPP KANWIL 090 Ditambahkan...`)
-        })
+        await SP2DKKPP.bulkWrite(data)
+        console.log(`${ data.length } Data SP2DK KPP KANWIL 090 Ditambahkan...`)
     }
 
     const getDataAndImportSp2dkKwl = async resp => {
@@ -260,15 +268,20 @@ const getDataAndImportSp2dk = (req, res) => {
             }
         ])
         for(let i in data){
-            data[i] = { 
-                ...data[i],
-                KD_KWL: data[i]['_id']
+            data[i] = {
+                updateOne: {
+                    filter: { KD_KWL: data[i]['_id'] },
+                    update: {
+                        ...data[i],
+                        KD_KWL: data[i]['_id']
+                    },
+                    upsert: true
+                }
             }
-            delete(data[i]['_id'])
+            delete data[i].updateOne.update['_id']
         }
-        await SP2DKKWL.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data SP2DK KANWIL 090 Ditambahkan...`)
-        })
+        await SP2DKKWL.bulkWrite(data)
+        console.log(`${ data.length } Data SP2DK KANWIL 090 Ditambahkan...`)
     }
 
     rp.get(loginUrl).then(resp => {

@@ -5,10 +5,6 @@ const SP2DKWP = require('../../models/sp2dkWpModel')
 const STPAR = require('../../models/stpArModel')
 const NONGALPOTAR = require('../../models/nonGalpotArModel')
 
-const dateFromObjectId = objectId => {
-	return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
-}
-
 const quartile = (arr, q) => {
   arr = arr.slice().sort((a, b) => a - b)
   var pos = ((arr.length) - 1) * q
@@ -43,7 +39,7 @@ const ranking = arr => {
 }
 
 const getRapor = async (req, res) => {
-  const { KD_KPP } = req.body
+  const { KD_KPP, method } = req.body
   
   const q = KD_KPP ? { KD_KPP } : {}
   const list_ar = await DIMAR.find(q, 'NIP_AR NAMA_AR KD_KPP')
@@ -107,25 +103,42 @@ const getRapor = async (req, res) => {
   const b = 1
 
   const xMinJmlSp2dk = 1
-  const xMaxJmlSp2dk = getXmax(jmlSp2dkArr)
   const xMinJmlLhp2dk = 1
-  const xMaxJmlLhp2dk = getXmax(jmlLhp2dkArr)
   const xMinJmlLhp2dkBerkualitas = 1
-  const xMaxJmlLhp2dkBerkualitas = getXmax(jmlLhp2dkBerkualitasArr)
   const xMinNilaiPotensiAkhir = 500000
-  const xMaxNilaiPotensiAkhir = getXmax(nilaiPotensiAkhirArr)
   const xMinRealisasiPotensiJmlWp = 1
-  const xMaxRealisasiPotensiJmlWp = getXmax(realisasiPotensiJmlWpArr)
   const xMinRealisasiPotensiNilai = 100000
-  const xMaxRealisasiPotensiNilai = getXmax(realisasiPotensiNilaiArr)
   const xMinJmlStp = 1
-  const xMaxJmlStp = getXmax(jmlStpArr)
   const xMinNilaiStp = 100000
-  const xMaxNilaiStp = getXmax(nilaiStpArr)
   const xMinjmlNonGalpot = 1
-  const xMaxjmlNonGalpot = getXmax(jmlNonGalpotArr)
   const xMinjmlVisit = 1
-  const xMaxjmlVisit = getXmax(jmlVisitArr)
+  let xMaxJmlSp2dk, xMaxJmlLhp2dk, xMaxJmlLhp2dkBerkualitas, xMaxNilaiPotensiAkhir,
+    xMaxRealisasiPotensiJmlWp, xMaxRealisasiPotensiNilai, xMaxJmlStp, xMaxNilaiStp,
+    xMaxjmlNonGalpot, xMaxjmlVisit
+  
+  if(method == 'boxplot'){
+    xMaxJmlSp2dk = getXmax(jmlSp2dkArr)
+    xMaxJmlLhp2dk = getXmax(jmlLhp2dkArr)
+    xMaxJmlLhp2dkBerkualitas = getXmax(jmlLhp2dkBerkualitasArr)
+    xMaxNilaiPotensiAkhir = getXmax(nilaiPotensiAkhirArr)
+    xMaxRealisasiPotensiJmlWp = getXmax(realisasiPotensiJmlWpArr)
+    xMaxRealisasiPotensiNilai = getXmax(realisasiPotensiNilaiArr)
+    xMaxJmlStp = getXmax(jmlStpArr)
+    xMaxNilaiStp = getXmax(nilaiStpArr)
+    xMaxjmlNonGalpot = getXmax(jmlNonGalpotArr)
+    xMaxjmlVisit = getXmax(jmlVisitArr)
+  } else {
+    xMaxJmlSp2dk = Math.max(...jmlSp2dkArr)
+    xMaxJmlLhp2dk = Math.max(...jmlLhp2dkArr)
+    xMaxJmlLhp2dkBerkualitas = Math.max(...jmlLhp2dkBerkualitasArr)
+    xMaxNilaiPotensiAkhir = Math.max(...nilaiPotensiAkhirArr)
+    xMaxRealisasiPotensiJmlWp = Math.max(...realisasiPotensiJmlWpArr)
+    xMaxRealisasiPotensiNilai = Math.max(...realisasiPotensiNilaiArr)
+    xMaxJmlStp = Math.max(...jmlStpArr)
+    xMaxNilaiStp = Math.max(...nilaiStpArr)
+    xMaxjmlNonGalpot = Math.max(...jmlNonGalpotArr)
+    xMaxjmlVisit = Math.max(...jmlVisitArr)
+  }
 
   const totalSkorAkhirArr = []
   for(let d of Object.keys(data)){
@@ -208,7 +221,7 @@ const getRapor = async (req, res) => {
     data[d].RANKING = ranks[i]
   }
 
-  res.json({ ok: true, data, lastUpdate })
+  res.json({ ok: true, data, lastUpdate, kd_kpp: KD_KPP })
 }
 
 module.exports = getRapor

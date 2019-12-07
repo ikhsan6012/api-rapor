@@ -1,5 +1,4 @@
 const cheerio = require('cheerio')
-const mongoose = require('mongoose')
 const rp = require('request-promise').defaults({
     jar: true,
     rejectUnauthorized: false,
@@ -10,19 +9,12 @@ const rp = require('request-promise').defaults({
 const { IP_SIKKA, PASS_SIKKA } = process.env
 const mainUrl = 'http://approweb.intranet.pajak.go.id'
 const loginUrl = 'http://approweb.intranet.pajak.go.id/index.php?r=site/index'
-const db = mongoose.connection
 const NONGALPOTKWL = require('../../models/nonGalpotKwlModel')
 const NONGALPOTKPP = require('../../models/nonGalpotKppModel')
 const NONGALPOTAR = require('../../models/nonGalpotArModel')
 const NONGALPOTWP = require('../../models/nonGalpotWpModel')
 
 const getDataAndImportNonGalpot = (req, res) => {
-    console.log('Menghapus Data Non Galpot Terdahulu')
-    db.dropCollection('NONGALPOTKWL')
-    db.dropCollection('NONGALPOTKPP')
-    db.dropCollection('NONGALPOTAR')
-    db.dropCollection('NONGALPOTWP')
-
     const url = 'http://approweb.intranet.pajak.go.id/index.php?r=wasaktar/nonGalpot'
     const { bulanAwal, bulanAkhir, tahun } = req.body
     let apprCSRF
@@ -42,6 +34,7 @@ const getDataAndImportNonGalpot = (req, res) => {
         const data = []
         $ = cheerio.load(resp.body)
         let rows = $('#nonGalpotWp tr')
+        if(!rows.length) return false
         for(let r = 1; r < rows.length - 1; r++){
             let cells = $($(rows[r]).find('td'))
             const d = { 'KD_KPP': kd_kpp, 'NIP_AR': nip_ar }
@@ -62,12 +55,17 @@ const getDataAndImportNonGalpot = (req, res) => {
                         break
                 }
             }
-            data.push(d)
+            data.push({
+                updateOne: {
+                    filter: { NPWP: d.NPWP },
+                    update: d,
+                    upsert: true
+                }
+            })
         }
         console.log(`Menambahkan Data Non Galpot WP AR ${ nip_ar }...`)
-        await NONGALPOTWP.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data Non Galpot WP AR ${ nip_ar } Ditambahkan...`)
-        })
+        await NONGALPOTWP.bulkWrite(data)
+        console.log(`${ data.length } Data Non Galpot WP AR ${ nip_ar } Ditambahkan...`)
     }
 
     const getDataAndImportNonGalpotAr = async (resp, kd_kpp) => {
@@ -82,6 +80,7 @@ const getDataAndImportNonGalpot = (req, res) => {
             if(txt.match('Non Waskon')) lastIdx = r
         }
 
+        if(!firstIdx) return false
         for(let r = firstIdx; r < lastIdx; r++){
             let cells = $($(rows[r]).find('td'))
             const d = { 'KD_KPP': kd_kpp }
@@ -102,12 +101,17 @@ const getDataAndImportNonGalpot = (req, res) => {
                         break
                 }
             }
-            data.push(d)
+            data.push({
+                updateOne: {
+                    filter: { NIP_AR: d.NIP_AR },
+                    update: d,
+                    upsert: true
+                }
+            })
         }
         console.log(`Menambahkan Data Non Galpot AR KPP ${ kd_kpp }...`)
-        await NONGALPOTAR.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data Non Galpot AR KPP ${ kd_kpp } Ditambahkan...`)
-        })
+        await NONGALPOTAR.bulkWrite(data)
+        console.log(`${ data.length } Data Non Galpot AR KPP ${ kd_kpp } Ditambahkan...`)
 
         for(let r = firstIdx; r < lastIdx; r++){
             let nip_ar = $($(rows[r]).find('td')[1]).text().trim().substring(1,10)
@@ -140,16 +144,21 @@ const getDataAndImportNonGalpot = (req, res) => {
             }
         ])
         for(let i in data){
-            data[i] = { 
-                ...data[i],
-                KD_KPP: data[i]['_id'],
-                KD_KWL: '090'
+            data[i] = {
+                updateOne: {
+                    filter: { KD_KPP: data[i]['_id'] },
+                    update: {
+                        ...data[i],
+                        KD_KPP: data[i]['_id'],
+                        KD_KWL: '090'
+                    },
+                    upsert: true 
+                }
             }
-            delete(data[i]['_id'])
+            delete data[i].updateOne.update['_id']
         }
-        await NONGALPOTKPP.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data Non Galpot KPP KANWIL 090 Ditambahkan...`)
-        })
+        await NONGALPOTKPP.bulkWrite(data)
+        console.log(`${ data.length } Data Non Galpot KPP KANWIL 090 Ditambahkan...`)
     }
 
     const getDataAndImportNonGalpotKwl = async resp => {
@@ -171,15 +180,20 @@ const getDataAndImportNonGalpot = (req, res) => {
             }
         ])
         for(let i in data){
-            data[i] = { 
-                ...data[i],
-                KD_KWL: data[i]['_id']
+            data[i] = {
+                updateOne: {
+                    filter: { KD_KWL: data[i]['_id'] },
+                    update: {
+                        ...data[i],
+                        KD_KWL: data[i]['_id']
+                    },
+                    upsert: true
+                }
             }
-            delete(data[i]['_id'])
+            delete data[i].updateOne.update['_id']
         }
-        await NONGALPOTKWL.insertMany(data).then(docs => {
-            console.log(`${ docs.length } Data Non Galpot KANWIL 090 Ditambahkan...`)
-        })
+        await NONGALPOTKWL.bulkWrite(data)
+        console.log(`${ data.length } Data Non Galpot KANWIL 090 Ditambahkan...`)
     }
 
     rp.get(loginUrl).then(resp => {
