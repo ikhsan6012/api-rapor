@@ -11,6 +11,7 @@ const dimWilSchema = new Schema({
   KD_DATI1: { type: String, index: true },
   NM_DATI1: { type: String },
   KPPADM: { type: String, index: true },
+  KD_POS: { type: String, index: true },
 })
 
 module.exports = model('DIM_WIL', dimWilSchema, 'DIM_WIL')

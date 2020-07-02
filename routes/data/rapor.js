@@ -39,9 +39,9 @@ const ranking = arr => {
 }
 
 const getRapor = async (req, res) => {
-  const { KD_KPP, method } = req.body
+  const { KD_KPP, method } = req.query
   
-  const q = KD_KPP ? { KD_KPP } : {}
+  const q = KD_KPP !== 'null' ? { KD_KPP } : {}
   const list_ar = await DIMAR.find(q, 'NIP_AR NAMA_AR KD_KPP')
   let lastUpdate = await SP2DKAR.findOne().sort({ updatedAt: 1 })
   lastUpdate = lastUpdate.updatedAt

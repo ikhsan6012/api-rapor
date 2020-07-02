@@ -7,4 +7,4 @@ const dimArSchema = new Schema({
   KD_KPP: { type: String, required: true, index: true }
 })
 
-module.exports = model('DIMAR', dimArSchema, 'DIMAR')
+module.exports = model('DIM_AR', dimArSchema, 'DIM_AR')

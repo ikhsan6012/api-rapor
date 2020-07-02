@@ -155,7 +155,7 @@ const getDataAndImportSp2dk = (req, res) => {
             }
             data.push({
                 updateOne: {
-                    filter: { NPWP: d.NPWP },
+                    filter: { NIP_AR: d.NIP_AR },
                     update: d,
                     upsert: true
                 }
